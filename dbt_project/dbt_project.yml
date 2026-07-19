@@ -1,0 +1,35 @@
+name: 'olist_lakehouse_gold'
+version: '1.0.0'
+config-version: 2
+
+# --- Target Connection Profile ---
+# Points to the profile configuration defined inside profiles.yml
+profile: 'olist_spark_profile'
+
+# --- Directory Paths Mapping ---
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# --- Materialization & Model Configurations ---
+# Why: Standardizes on 'table' or 'incremental' configurations.
+# For Gold-tier metrics, we materialize as fully-optimized Iceberg tables.
+models:
+  olist_lakehouse_gold:
+    # Default materialization applied to all models unless overridden locally
+    +materialized: table
+    +file_format: iceberg
+    
+    marketing:
+      +schema: gold_marketing
+    finance:
+      +schema: gold_finance
+      # Secure financial aggregation metrics should never be appended blindly
+      +incremental_strategy: merge

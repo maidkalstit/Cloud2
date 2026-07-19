@@ -1,0 +1,11 @@
+.env
+# --- Terraform Infrastructure Quarantines ---
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.venv
+.pytest_cache/
+__pycache__/
+*.pyc
+hadoop/

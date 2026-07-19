@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: silver
+    database: demo  # Maps to the active Iceberg catalog defined in profiles.yml
+    schema: silver  # Maps to the schema created by our PySpark streaming job
+    tables:
+      - name: silver_transactions
+        description: "The cleansed and deduplicated Olist transactions stored as an Apache Iceberg table."

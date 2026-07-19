@@ -1,0 +1,10 @@
+# ==============================================================================
+# Project V2.5 - Production Crontab Configuration
+# Establishes off-peak staggered execution to protect the 4GB RAM boundary.
+# ==============================================================================
+
+# Primary Maintenance Window: Triggered at exactly 01:00 AM every single day
+# Flow: Gracefully pause stream -> Run Iceberg Compaction -> Execute dbt Gold models -> Resume stream
+0 1 * * * /bin/bash /home/tung12342004_gmail_com/cloud2/infra/cron/orchestrate.sh >> /home/tung12342004_gmail_com/cloud2/logs/cron.log 2>&1
+
+# Crucial: Linux crontab requires an absolute trailing blank line below this comment to execute properly!

@@ -1,0 +1,31 @@
+olist_spark_profile:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      # --- Extreme Resource Optimization for 4GB RAM ---
+      # Why: 'session' method runs PySpark locally inside the dbt process itself.
+      # It avoids running a heavy, permanent Thrift Server daemon, saving over 1GB of idle RAM.
+      method: session
+      schema: demo_gold
+      host: localhost
+      # --- In-Session Spark Engine Tuning Parameters ---
+      spark_configs:
+        spark.master: "local[1]"
+        spark.sql.shuffle.partitions: "1"
+        spark.default.parallelism: "1"
+        spark.driver.memory: "1g"
+        
+        # --- Apache Iceberg Catalog Integration ---
+        spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+        spark.sql.catalog.demo: "org.apache.iceberg.spark.SparkCatalog"
+        spark.sql.catalog.demo.type: "hadoop"
+        
+        # --- Strict Zero-Hardcoding Security Rules ---
+        # Why: Dynamically resolves the warehouse path from environment variables at runtime.
+        # If the variable is missing, dbt fails-fast immediately instead of writing to a wrong location.
+        spark.sql.catalog.demo.warehouse: "gs://{{ env_var('GCS_BUCKET_NAME') }}/warehouse"
+        
+        # --- GCS Security Plugs ---
+        spark.hadoop.fs.gs.impl: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
+        spark.hadoop.google.cloud.auth.service.account.enable: "true"
