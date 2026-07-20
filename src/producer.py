@@ -171,7 +171,9 @@ if __name__ == "__main__":
     import os
     import json
     import io
+
     from confluent_kafka import Producer
+
     from fastavro import schemaless_writer, parse_schema
 
     print("Starting real-time Olist event simulation producer...")
@@ -222,4 +224,4 @@ if __name__ == "__main__":
         print("Replay simulation paused by user.")
     finally:
         producer.flush()
-        print("Producer shutdown cleanly.")
+        print("Producer shutdown cleanly.")

@@ -7,7 +7,9 @@ import sys
 os.environ["PYSPARK_PYTHON"] = sys.executable
 os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 os.environ["HADOOP_HOME"] = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "hadoop"))
+from decimal import Decimal
 from pydantic import BaseModel, field_validator, ValidationError
+
 
 from great_expectations.dataset.sparkdf_dataset import SparkDFDataset
 
@@ -22,7 +24,7 @@ class BusinessTransaction(BaseModel):
     customer_id: str
     order_status: str
     order_purchase_timestamp: str
-    payment_value: float
+    payment_value: Decimal
 
     @field_validator("order_status")
     @classmethod
@@ -33,7 +35,7 @@ class BusinessTransaction(BaseModel):
 
     @field_validator("payment_value")
     @classmethod
-    def check_financial_sanity(cls, v: float) -> float:
+    def check_financial_sanity(cls, v: Decimal) -> Decimal:
         if v < 0:
             raise ValueError("NEGATIVE_VALUE")
         return v
@@ -49,9 +51,9 @@ def validate_row_logic(
     """Validates an incoming record against the strict Pydantic schema rules."""
     try:
         try:
-            parsed_val = float(payment_value) if payment_value else 0.0
-        except ValueError:
-            parsed_val = 0.0
+            parsed_val = Decimal(str(payment_value)) if payment_value else Decimal("0.00")
+        except Exception:
+            parsed_val = Decimal("0.00")
 
         BusinessTransaction(
             ingest_id=ingest_id or "",
@@ -62,6 +64,7 @@ def validate_row_logic(
             payment_value=parsed_val
         )
         return "VALID"
+
     except ValidationError as val_err:
         err_msg = str(val_err)
         if "EMPTY_STATUS" in err_msg:
@@ -190,7 +193,6 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
     Orchestrates the transactional write-paths for a single streaming micro-batch.
     Splits records into Bronze historical tracking, Silver Clean, and Silver Pending Review (DLQ Tier 2).
     
-    Why: Handles downstream multi-table multiplexing safely. Using Iceberg's SQL MERGE INTO 
     guarantees that if a micro-batch fails halfway and retries, no duplicate records will enter Silver.
     """
     spark_session: SparkSession = batch_df.sparkSession
@@ -198,6 +200,9 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
         return
 
     # 1. Enrich with Ingestion Metadata for Bronze Layer
+
+
+
     # Why: Bronze must serve as an absolute historical ledger of raw arrivals.
     bronze_enriched_df = batch_df.withColumn("ingested_at", current_timestamp())
     bronze_enriched_df.write.format("iceberg").mode("append").save("demo.bronze.bronze_transactions")

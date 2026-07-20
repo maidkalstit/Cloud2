@@ -31,3 +31,30 @@ def test_settings_default_values_are_correct() -> None:
     assert Settings.model_fields["KAFKA_SPEED_MULTIPLIER"].default == 10000.0
     assert Settings.model_fields["INJECT_ERROR"].default is False
 
+def test_settings_type_casting() -> None:
+    """Verifies that Pydantic automatically casts compatible types (e.g. string to float)."""
+    settings = Settings(
+        GCP_PROJECT_ID="test-project",
+        GCS_BUCKET_NAME="test-bucket",
+        STRUCTURAL_ERROR_RATE="0.05",
+        BUSINESS_ERROR_RATE="0.08",
+        SPARK_MAX_OFFSETS_PER_TRIGGER="1500"
+    )
+    assert isinstance(settings.STRUCTURAL_ERROR_RATE, float)
+    assert settings.STRUCTURAL_ERROR_RATE == 0.05
+    assert isinstance(settings.BUSINESS_ERROR_RATE, float)
+    assert settings.BUSINESS_ERROR_RATE == 0.08
+    assert isinstance(settings.SPARK_MAX_OFFSETS_PER_TRIGGER, int)
+    assert settings.SPARK_MAX_OFFSETS_PER_TRIGGER == 1500
+
+def test_settings_validation_errors() -> None:
+    """Verifies that validation errors are raised for incompatible types."""
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            GCP_PROJECT_ID="test-project",
+            GCS_BUCKET_NAME="test-bucket",
+            STRUCTURAL_ERROR_RATE="not-a-float"
+        )
+    assert "Input should be a valid number" in str(exc_info.value)
+
+
