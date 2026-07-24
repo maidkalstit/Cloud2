@@ -291,9 +291,60 @@ def start_streaming_job(spark: SparkSession, raw_stream_df: DataFrame, base_sche
         .start()
     )
     query.awaitTermination()
+    
+def init_iceberg_tables(spark: SparkSession) -> None:
+    """Ensures Iceberg namespaces and tables are initialized prior to streaming ingestion."""
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.bronze")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.silver")
+
+    spark.sql("""
+        CREATE TABLE IF NOT EXISTS demo.bronze.bronze_transactions (
+            ingest_id STRING,
+            order_id STRING,
+            customer_id STRING,
+            order_status STRING,
+            order_purchase_timestamp STRING,
+            payment_value STRING,
+            ingested_at TIMESTAMP
+        ) USING iceberg
+    """)
+
+    spark.sql("""
+        CREATE TABLE IF NOT EXISTS demo.silver.silver_transactions (
+            ingest_id STRING,
+            order_id STRING,
+            customer_id STRING,
+            order_status STRING,
+            order_purchase_timestamp STRING,
+            payment_value STRING,
+            parsed_payment_value DECIMAL(18,2),
+            created_date DATE,
+            validation_status STRING,
+            _is_remediated BOOLEAN,
+            _remediation_rule STRING
+        ) USING iceberg
+        PARTITIONED BY (created_date)
+    """)
+
+    spark.sql("""
+        CREATE TABLE IF NOT EXISTS demo.silver.silver_pending_review (
+            ingest_id STRING,
+            order_id STRING,
+            customer_id STRING,
+            order_status STRING,
+            order_purchase_timestamp STRING,
+            payment_value STRING,
+            parsed_payment_value DECIMAL(18,2),
+            created_date DATE,
+            validation_status STRING,
+            _status STRING
+        ) USING iceberg
+    """)
+
 
 if __name__ == "__main__":
     spark_session = init_spark_session()
+    init_iceberg_tables(spark_session)
     raw_stream = build_kafka_read_stream(spark_session)
     base_schema = get_base_bronze_schema()
     start_streaming_job(spark_session, raw_stream, base_schema)
