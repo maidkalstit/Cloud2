@@ -77,10 +77,11 @@ def process_and_send_event(
 
     try:
         serialized_payload = avro_serializer(transaction_data)
-        kafka_producer.send(topic=config.KAFKA_TOPIC_RAW_TRANSACTIONS, value=serialized_payload)
+        kafka_producer.produce(topic=config.KAFKA_TOPIC_RAW_TRANSACTIONS, value=serialized_payload)
     except Exception as serialization_error:
         fallback_payload = raw_serializer(transaction_data)
-        kafka_producer.send(topic=config.KAFKA_TOPIC_DLQ_STRUCTURAL, value=fallback_payload)
+        kafka_producer.produce(topic=config.KAFKA_TOPIC_DLQ_STRUCTURAL, value=fallback_payload)
+
         
         alert_msg = f"ALERT: DLQ Tier 1 Triggered. Avro Serialization Failed: {str(serialization_error)}"
         alert_sender(alert_msg)

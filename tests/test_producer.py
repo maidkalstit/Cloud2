@@ -77,7 +77,7 @@ def test_process_and_send_event_happy_path_success() -> None:
     )
     
     mock_avro_serializer.assert_called_once()
-    mock_kafka_producer.send.assert_called_once_with(
+    mock_kafka_producer.produce.assert_called_once_with(
         topic=config.KAFKA_TOPIC_RAW_TRANSACTIONS,
         value=b"\x00\x01_serialized_avro_binary"
     )
@@ -106,8 +106,9 @@ def test_process_and_send_event_routes_to_dlq_tier1_on_serialization_failure() -
     )
     
     mock_avro_serializer.assert_called_once()
-    mock_kafka_producer.send.assert_called_once_with(
+    mock_kafka_producer.produce.assert_called_once_with(
         topic=config.KAFKA_TOPIC_DLQ_STRUCTURAL,
         value=b'{"fallback": "json_raw"}'
     )
+
     mock_alert_sender.assert_called_once()
