@@ -165,6 +165,12 @@ if __name__ == "__main__":
         .master("local[1]")
         .config("spark.driver.host", "127.0.0.1")
         .config("spark.driver.bindAddress", "127.0.0.1")
+        .config(
+            "spark.jars.packages",
+            "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0,"
+            "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.19"
+        )
+
 
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
 
@@ -173,6 +179,8 @@ if __name__ == "__main__":
         .config("spark.sql.catalog.demo.warehouse", config.gcs_warehouse_path)
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.default.parallelism", "1")
+        .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
+        .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
         .getOrCreate()
     )
     run_governance_cli(spark_session, reviewer_name="System Auditor")
