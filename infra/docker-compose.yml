@@ -26,7 +26,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     # --- Strict Resource Budget Allocations (4GB VM Limit) ---
-    mem_limit: 768m
+    mem_limit: 1280m
     cpus: '1.0'
     healthcheck:
       # Handshake verification using Kafka's built-in tool, avoiding shallow TCP port checks
