@@ -162,8 +162,9 @@ if __name__ == "__main__":
         SparkSession.builder
         .appName("Olist-Governance-CLI-Main")
         .master("local[1]")
-        .config("spark.driver.host", "localhost")
-        .config("spark.ui.enabled", "false")  # <--- Tắt Spark UI cho CLI
+        .config("spark.driver.host", "127.0.0.1")
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.ui.enabled", "false")
 
         # --- Nạp các gói JARs cho Iceberg & GCS Connector ---
         .config(
@@ -185,3 +186,4 @@ if __name__ == "__main__":
         .getOrCreate()
     )
     run_governance_cli(spark_session, reviewer_name="System Auditor")
+
