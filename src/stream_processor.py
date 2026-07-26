@@ -355,6 +355,18 @@ def init_iceberg_tables(spark: SparkSession) -> None:
         ) USING iceberg
     """)
 
+    spark.sql("""
+        CREATE TABLE IF NOT EXISTS demo.silver.audit_log (
+            order_id STRING,
+            old_value STRING,
+            new_value STRING,
+            field_changed STRING,
+            action STRING,
+            reviewed_by STRING,
+            reviewed_at STRING
+        ) USING iceberg
+    """)
+
 
 if __name__ == "__main__":
     spark_session = init_spark_session()

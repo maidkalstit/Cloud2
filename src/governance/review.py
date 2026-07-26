@@ -96,6 +96,18 @@ def apply_remediation_decision(
         new_value = "N/A"
 
     # 2. Append to centralized audit_log table for strict governance compliance
+    spark.sql("""
+        CREATE TABLE IF NOT EXISTS demo.silver.audit_log (
+            order_id STRING,
+            old_value STRING,
+            new_value STRING,
+            field_changed STRING,
+            action STRING,
+            reviewed_by STRING,
+            reviewed_at STRING
+        ) USING iceberg
+    """)
+    
     audit_entry = [{
         "old_value": str(old_value),
         "new_value": new_value,
