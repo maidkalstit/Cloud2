@@ -1,6 +1,6 @@
-
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import col, from_json, current_timestamp, lit, to_date, when, udf
+from pyspark.sql.functions import col, current_timestamp, lit, to_date, when, udf
+from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.types import StructType, StructField, StringType
 import os
 import sys
@@ -117,10 +117,11 @@ def init_spark_session() -> SparkSession:
         .config("spark.default.parallelism", "2")
         .config("spark.memory.fraction", "0.6")       # Balanced execution vs storage memory split
         
-        # --- Package Integrations (Kafka, Iceberg, and GCS) ---
+        # --- Package Integrations (Kafka, Iceberg, Avro, and GCS) ---
         .config(
             "spark.jars.packages",
             "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.3,"
+            "org.apache.spark:spark-avro_2.13:4.0.3,"
             "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0,"
             "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.19"
         )
@@ -151,40 +152,53 @@ def build_kafka_read_stream(spark: SparkSession) -> DataFrame:
         .format("kafka")
         .option("kafka.bootstrap.servers", config.KAFKA_BOOTSTRAP_SERVERS)
         .option("subscribe", config.KAFKA_TOPIC_RAW_TRANSACTIONS)
-        .option("startingOffsets", "latest")
+        .option("startingOffsets", "earliest")
         # Backpressure boundary regulation
         .option("maxOffsetsPerTrigger", str(config.SPARK_MAX_OFFSETS_PER_TRIGGER))
         .load()
     )
 
-def get_base_bronze_schema() -> StructType:
-    """
-    Defines the structural baseline contract for extracting payload fields from binary wrappers.
-    
-    Why: Even though data types are refined downstream into DECIMAL for financials, maintaining 
-    primitive StringType at entry point protects stream transformation from immediate data type crashes.
-    """
-    return StructType([
-        StructField("ingest_id", StringType(), True),
-        StructField("order_id", StringType(), True),
-        StructField("customer_id", StringType(), True),
-        StructField("order_status", StringType(), True),
-        StructField("order_purchase_timestamp", StringType(), True),
-        StructField("payment_value", StringType(), True)
-    ])
+# --- Avro Schema (Must match Producer's schema exactly) ---
+# Why: Avro is a binary, schema-dependent format. Both the writer (Producer) and 
+# reader (Stream Processor) MUST share the exact same schema to correctly 
+# encode/decode fields. Unlike JSON where field names are embedded in each record,
+# Avro omits field names from the binary payload to save space — it relies entirely
+# on the schema to know which bytes correspond to which field.
+AVRO_SCHEMA_STR: str = """
+{
+  "type": "record",
+  "name": "OrderTransaction",
+  "namespace": "com.olist.lakehouse",
+  "fields": [
+    {"name": "ingest_id", "type": "string"},
+    {"name": "order_id", "type": "string"},
+    {"name": "customer_id", "type": "string"},
+    {"name": "order_status", "type": "string"},
+    {"name": "order_purchase_timestamp", "type": "string"},
+    {"name": "payment_value", "type": "string"}
+  ]
+}
+"""
 
-def deserialize_kafka_payload(raw_kafka_df: DataFrame, schema: StructType) -> DataFrame:
+def deserialize_kafka_payload(raw_kafka_df: DataFrame) -> DataFrame:
     """
-    Transforms raw binary Kafka records into a structured, typed DataFrame.
+    Transforms raw binary Kafka records into a structured, typed DataFrame
+    using Apache Avro deserialization.
     
-    Why: Data arrives from Kafka as a binary payload ('value' column). Casting to string 
-    and extracting via JSON schema ensures a deterministic entry layout. In absolute production 
-    with Schema Registry, this would use Spark's native 'from_avro' function.
+    Why: The Producer serializes each record using fastavro's schemaless_writer(),
+    which outputs compact Avro binary bytes. These bytes CANNOT be interpreted as
+    UTF-8 text (JSON). Spark's from_avro() function understands the Avro binary
+    format and uses the provided schema to correctly decode each field.
+    
+    Binary Layout Example (Avro vs JSON):
+      JSON:  {"order_id": "abc"}     → 20 bytes (human-readable, field names included)
+      Avro:  [0x06 0x61 0x62 0x63]   → 4 bytes  (compact, field names omitted)
+             ^^^^                      ^^^^^^^^
+             length=3 (varint)         raw UTF-8 "abc"
     """
     return (
         raw_kafka_df
-        .selectExpr("CAST(value AS STRING) as json_payload")
-        .select(from_json(col("json_payload"), schema).alias("data"))
+        .select(from_avro(col("value"), AVRO_SCHEMA_STR).alias("data"))
         .select("data.*")
     )
 
@@ -273,7 +287,7 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
         WHEN NOT MATCHED THEN INSERT *
     """)
 
-def start_streaming_job(spark: SparkSession, raw_stream_df: DataFrame, base_schema: StructType) -> None:
+def start_streaming_job(spark: SparkSession, raw_stream_df: DataFrame) -> None:
     """
     Triggers the active execution loop of the PySpark Structured Streaming pipeline.
     Offsets and transactional progress are safely anchored onto GCS storage.
@@ -281,7 +295,7 @@ def start_streaming_job(spark: SparkSession, raw_stream_df: DataFrame, base_sche
     Why: Hardcoding checkpoint location on local disk causes instant checkpoint loss 
     if the VM instance restarts. GCS provides persistent, multi-node durability.
     """
-    structured_df = deserialize_kafka_payload(raw_stream_df, base_schema)
+    structured_df = deserialize_kafka_payload(raw_stream_df)
     
     query = (
         structured_df.writeStream
@@ -346,5 +360,4 @@ if __name__ == "__main__":
     spark_session = init_spark_session()
     init_iceberg_tables(spark_session)
     raw_stream = build_kafka_read_stream(spark_session)
-    base_schema = get_base_bronze_schema()
-    start_streaming_job(spark_session, raw_stream, base_schema)
+    start_streaming_job(spark_session, raw_stream)
