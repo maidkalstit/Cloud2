@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     BUSINESS_ERROR_RATE: float = Field(default=0.03, ge=0.0, le=1.0, description="Probability rate for Pydantic/GE business rule failures.")
     
     # --- Spark Tuning Parameters ---
-    SPARK_MAX_OFFSETS_PER_TRIGGER: int = Field(default=2000, ge=1, description="Rate limit on maximum offsets processed per trigger interval.")
-    SPARK_TRIGGER_PROCESSING_TIME: str = Field(default="10 seconds", description="Trigger interval for streaming micro-batches.")
+    SPARK_MAX_OFFSETS_PER_TRIGGER: int = Field(default=1000, ge=1, description="Rate limit on maximum offsets processed per trigger interval.")
+    SPARK_TRIGGER_PROCESSING_TIME: str = Field(default="15 seconds", description="Trigger interval for streaming micro-batches.")
     KAFKA_SPEED_MULTIPLIER: float = Field(default=10000.0, ge=1.0, description="Multiplier for time-based CSV event replay speed.")
 
     
