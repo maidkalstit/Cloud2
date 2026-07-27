@@ -23,13 +23,12 @@ clean-targets:
 # For Gold-tier metrics, we materialize as fully-optimized Iceberg tables.
 models:
   olist_lakehouse_gold:
-    # Default materialization applied to all models unless overridden locally
     +materialized: table
     +file_format: iceberg
+    +database: demo  # Target the Iceberg catalog 'demo'
     
     marketing:
       +schema: gold_marketing
     finance:
       +schema: gold_finance
-      # Secure financial aggregation metrics should never be appended blindly
       +incremental_strategy: merge
