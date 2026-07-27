@@ -2,6 +2,7 @@ version: 2
 
 sources:
   - name: silver
+    database: demo  # Target the Iceberg catalog 'demo'
     schema: silver  # Maps to demo.silver schema created by PySpark
     tables:
       - name: silver_transactions
