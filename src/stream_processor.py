@@ -310,6 +310,8 @@ def init_iceberg_tables(spark: SparkSession) -> None:
     """Ensures Iceberg namespaces and tables are initialized prior to streaming ingestion."""
     spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.bronze")
     spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.silver")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.gold_finance")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.gold_marketing")
 
     spark.sql("""
         CREATE TABLE IF NOT EXISTS demo.bronze.bronze_transactions (

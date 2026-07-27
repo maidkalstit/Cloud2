@@ -24,7 +24,6 @@ clean-targets:
 models:
   olist_lakehouse_gold:
     +materialized: table
-    +file_format: iceberg
     +database: demo  # Target the Iceberg catalog 'demo'
     
     marketing:
