@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: silver
-    schema: demo.silver  # Maps to demo.silver schema created by PySpark
+    schema: silver  # Maps to demo.silver schema created by PySpark
     tables:
       - name: silver_transactions
         description: "The cleansed and deduplicated Olist transactions stored as an Apache Iceberg table."
