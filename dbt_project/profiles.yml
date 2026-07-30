@@ -7,6 +7,7 @@ olist_spark_profile:
       # Why: 'session' method runs PySpark locally inside the dbt process itself.
       # It avoids running a heavy, permanent Thrift Server daemon, saving over 1GB of idle RAM.
       method: session
+      catalog: demo
       schema: silver
       host: localhost
       # --- In-Session Spark Engine Tuning Parameters ---
