@@ -7,7 +7,7 @@ olist_spark_profile:
       # Why: 'session' method runs PySpark locally inside the dbt process itself.
       # It avoids running a heavy, permanent Thrift Server daemon, saving over 1GB of idle RAM.
       method: session
-      schema: default
+      schema: silver
       host: localhost
       # --- In-Session Spark Engine Tuning Parameters ---
       spark_configs:
@@ -20,6 +20,7 @@ olist_spark_profile:
         spark.jars.packages: "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0,com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.19"
         
         # --- Apache Iceberg Catalog Integration ---
+        spark.sql.defaultCatalog: "demo"
         spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
         spark.sql.catalog.demo: "org.apache.iceberg.spark.SparkCatalog"
         spark.sql.catalog.demo.type: "hadoop"
