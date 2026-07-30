@@ -23,6 +23,7 @@ clean-targets:
 # For Gold-tier metrics, we materialize as fully-optimized Iceberg tables.
 models:
   olist_lakehouse_gold:
+    +database: demo
     +materialized: table
     +file_format: iceberg
     
