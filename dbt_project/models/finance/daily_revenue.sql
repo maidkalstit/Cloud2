@@ -10,9 +10,6 @@ with raw_transactions as (
     select * from {{ source('silver', 'silver_transactions') }}
     
     {% if is_incremental() %}
-    -- Why: 'date_sub' filters and processes only the last 3 days of data during incremental runs.
-    -- This handles late-arriving streaming records safely without triggering a full table scan,
-    -- keeping our compute cost at absolute zero on our 4GB RAM VM.
     where created_date >= date_sub(current_date(), 3)
     {% endif %}
 ),
