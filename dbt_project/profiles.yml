@@ -9,28 +9,26 @@ olist_spark_profile:
       method: session
       schema: silver
       host: localhost
-      # --- In-Session Spark Engine Tuning Parameters ---
-      spark_configs:
-        spark.master: "local[1]"
-        spark.sql.shuffle.partitions: "1"
-        spark.default.parallelism: "1"
-        spark.driver.memory: "1g"
-        
-        # --- Package Integrations (Iceberg & GCS) ---
-        spark.jars.packages: "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0,com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.19"
-        
-        # --- Apache Iceberg Catalog Integration ---
-        spark.sql.sources.default: "iceberg"
-        spark.sql.defaultCatalog: "demo"
-        spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-        spark.sql.catalog.demo: "org.apache.iceberg.spark.SparkCatalog"
-        spark.sql.catalog.demo.type: "hadoop"
-        
-        # --- Strict Zero-Hardcoding Security Rules ---
-        # Why: Dynamically resolves the warehouse path from environment variables at runtime.
-        # If the variable is missing, dbt fails-fast immediately instead of writing to a wrong location.
-        spark.sql.catalog.demo.warehouse: "gs://{{ env_var('GCS_BUCKET_NAME') }}/warehouse"
-        
-        # --- GCS Security Plugs ---
-        spark.hadoop.fs.gs.impl: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
-        spark.hadoop.google.cloud.auth.service.account.enable: "true"
+        # --- In-Session Spark Engine Tuning Parameters ---
+        spark_configs:
+          spark.master: "local[1]"
+          spark.sql.shuffle.partitions: "1"
+          spark.default.parallelism: "1"
+          spark.driver.memory: "1g"
+          
+          # --- Apache Iceberg Catalog Integration ---
+          spark.sql.sources.default: "iceberg"
+          spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+          
+          # Catalog Configs
+          spark.sql.catalog.demo: "org.apache.iceberg.spark.SparkCatalog"
+          spark.sql.catalog.demo.type: "hadoop"
+          spark.sql.catalog.demo.warehouse: "gs://{{ env_var('GCS_BUCKET_NAME') }}/warehouse"
+          
+          # Inject GCS configs DIRECTLY into Iceberg Catalog specific namespace
+          spark.sql.catalog.demo.hadoop.fs.gs.impl: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
+          spark.sql.catalog.demo.hadoop.google.cloud.auth.service.account.enable: "true"
+          
+          # Global GCS Configs
+          spark.hadoop.fs.gs.impl: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
+          spark.hadoop.google.cloud.auth.service.account.enable: "true"
