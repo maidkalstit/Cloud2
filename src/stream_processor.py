@@ -129,9 +129,9 @@ def init_spark_session() -> SparkSession:
         
         # --- Apache Iceberg Extensions & Catalog Configuration ---
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-        .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog")
-        .config("spark.sql.catalog.demo.type", "hadoop")
-        .config("spark.sql.catalog.demo.warehouse", config.gcs_warehouse_path)
+        .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
+        .config("spark.sql.catalog.spark_catalog.type", "hadoop")
+        .config("spark.sql.catalog.spark_catalog.warehouse", config.gcs_warehouse_path)
         
         # --- GCS Connector Security Plugs ---
         .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
@@ -219,7 +219,7 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
 
     # Why: Bronze must serve as an absolute historical ledger of raw arrivals.
     bronze_enriched_df = batch_df.withColumn("ingested_at", current_timestamp())
-    bronze_enriched_df.write.format("iceberg").mode("append").save("demo.bronze.bronze_transactions")
+    bronze_enriched_df.write.format("iceberg").mode("append").save("bronze.bronze_transactions")
 
     # 2. Add structural date partitioning column & Money Precision Enforcement
     # Why: Casting to DECIMAL(18,2) prevents floating-point accounting drift.
@@ -272,7 +272,7 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
     # Why: Prevents duplication across retries by updating records on matching Business Key (order_id)
     pending_review_df.createOrReplaceTempView("tmp_batch_pending")
     spark_session.sql("""
-        MERGE INTO demo.silver.silver_pending_review target
+        MERGE INTO silver.silver_pending_review target
         USING tmp_batch_pending source
         ON target.order_id = source.order_id AND target.ingest_id = source.ingest_id
         WHEN MATCHED THEN UPDATE SET *
@@ -280,7 +280,7 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
     """)
     deduplicated_clean_df.createOrReplaceTempView("tmp_batch_silver_clean")
     spark_session.sql("""
-        MERGE INTO demo.silver.silver_transactions target
+        MERGE INTO silver.silver_transactions target
         USING tmp_batch_silver_clean source
         ON target.order_id = source.order_id
         WHEN MATCHED THEN UPDATE SET *
@@ -308,13 +308,13 @@ def start_streaming_job(spark: SparkSession, raw_stream_df: DataFrame) -> None:
     
 def init_iceberg_tables(spark: SparkSession) -> None:
     """Ensures Iceberg namespaces and tables are initialized prior to streaming ingestion."""
-    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.bronze")
-    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.silver")
-    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.gold_finance")
-    spark.sql("CREATE NAMESPACE IF NOT EXISTS demo.gold_marketing")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS bronze")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS silver")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS gold_finance")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS gold_marketing")
 
     spark.sql("""
-        CREATE TABLE IF NOT EXISTS demo.bronze.bronze_transactions (
+        CREATE TABLE IF NOT EXISTS bronze.bronze_transactions (
             ingest_id STRING,
             order_id STRING,
             customer_id STRING,
@@ -326,7 +326,7 @@ def init_iceberg_tables(spark: SparkSession) -> None:
     """)
 
     spark.sql("""
-        CREATE TABLE IF NOT EXISTS demo.silver.silver_transactions (
+        CREATE TABLE IF NOT EXISTS silver.silver_transactions (
             ingest_id STRING,
             order_id STRING,
             customer_id STRING,
@@ -343,7 +343,7 @@ def init_iceberg_tables(spark: SparkSession) -> None:
     """)
 
     spark.sql("""
-        CREATE TABLE IF NOT EXISTS demo.silver.silver_pending_review (
+        CREATE TABLE IF NOT EXISTS silver.silver_pending_review (
             ingest_id STRING,
             order_id STRING,
             customer_id STRING,
@@ -358,7 +358,7 @@ def init_iceberg_tables(spark: SparkSession) -> None:
     """)
 
     spark.sql("""
-        CREATE TABLE IF NOT EXISTS demo.silver.audit_log (
+        CREATE TABLE IF NOT EXISTS silver.audit_log (
             order_id STRING,
             old_value STRING,
             new_value STRING,

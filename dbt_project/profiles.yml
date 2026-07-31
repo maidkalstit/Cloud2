@@ -18,17 +18,16 @@ olist_spark_profile:
         
         # --- Apache Iceberg Catalog Integration ---
         spark.sql.sources.default: "iceberg"
-        spark.sql.defaultCatalog: "demo"
         spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
         
-        # Catalog Configs
-        spark.sql.catalog.demo: "org.apache.iceberg.spark.SparkCatalog"
-        spark.sql.catalog.demo.type: "hadoop"
-        spark.sql.catalog.demo.warehouse: "gs://{{ env_var('GCS_BUCKET_NAME') }}/warehouse"
+        # Catalog Configs (Overriding default Hive Metastore with Iceberg)
+        spark.sql.catalog.spark_catalog: "org.apache.iceberg.spark.SparkCatalog"
+        spark.sql.catalog.spark_catalog.type: "hadoop"
+        spark.sql.catalog.spark_catalog.warehouse: "gs://{{ env_var('GCS_BUCKET_NAME') }}/warehouse"
         
         # Inject GCS configs DIRECTLY into Iceberg Catalog specific namespace
-        spark.sql.catalog.demo.hadoop.fs.gs.impl: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
-        spark.sql.catalog.demo.hadoop.google.cloud.auth.service.account.enable: "true"
+        spark.sql.catalog.spark_catalog.hadoop.fs.gs.impl: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
+        spark.sql.catalog.spark_catalog.hadoop.google.cloud.auth.service.account.enable: "true"
         
         # Global GCS Configs
         spark.hadoop.fs.gs.impl: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"

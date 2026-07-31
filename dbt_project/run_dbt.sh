@@ -10,11 +10,11 @@ echo "Successfully injected Jars into: $PYSPARK_JARS_DIR"
 
 # Cấu hình OS Boot: (Đã gỡ bỏ --packages vì thư viện đã nằm sẵn trong lõi hệ thống)
 export PYSPARK_SUBMIT_ARGS="--conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
---conf spark.sql.catalog.demo=org.apache.iceberg.spark.SparkCatalog \
---conf spark.sql.catalog.demo.type=hadoop \
---conf spark.sql.catalog.demo.warehouse=gs://${GCS_BUCKET_NAME}/warehouse \
---conf spark.sql.catalog.demo.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
---conf spark.sql.catalog.demo.hadoop.google.cloud.auth.service.account.enable=true \
+--conf spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog \
+--conf spark.sql.catalog.spark_catalog.type=hadoop \
+--conf spark.sql.catalog.spark_catalog.warehouse=gs://${GCS_BUCKET_NAME}/warehouse \
+--conf spark.sql.catalog.spark_catalog.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
+--conf spark.sql.catalog.spark_catalog.hadoop.google.cloud.auth.service.account.enable=true \
 --conf spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
 --conf spark.hadoop.google.cloud.auth.service.account.enable=true \
 pyspark-shell"
