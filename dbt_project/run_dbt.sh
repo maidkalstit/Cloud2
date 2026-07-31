@@ -8,6 +8,8 @@ export PYSPARK_SUBMIT_ARGS="--packages org.apache.iceberg:iceberg-spark-runtime-
 --conf spark.sql.catalog.demo=org.apache.iceberg.spark.SparkCatalog \
 --conf spark.sql.catalog.demo.type=hadoop \
 --conf spark.sql.catalog.demo.warehouse=gs://${GCS_BUCKET_NAME}/warehouse \
+--conf spark.sql.catalog.demo.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
+--conf spark.sql.catalog.demo.hadoop.google.cloud.auth.service.account.enable=true \
 --conf spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
 --conf spark.hadoop.google.cloud.auth.service.account.enable=true \
 pyspark-shell"
