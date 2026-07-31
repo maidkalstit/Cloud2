@@ -18,6 +18,7 @@ olist_spark_profile:
         
         # --- Apache Iceberg Catalog Integration ---
         spark.sql.sources.default: "iceberg"
+        spark.sql.defaultCatalog: "demo"
         spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
         
         # Catalog Configs
