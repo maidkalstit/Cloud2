@@ -217,10 +217,6 @@ if __name__ == "__main__":
 
     print("Pre-loading and sorting datasets (this may take a few seconds)...")
     transactions = get_merged_sorted_transactions(orders_file, payments_file)
-    
-    # [HOTFIX - LOW RAM VM] Limit to 150 records for testing to prevent 30+ minute Iceberg bottlenecks and OOM kills on 4GB VM
-    transactions = transactions[:150]
-    
     print(f"Loaded {len(transactions)} sorted events. Replaying with speed factor {config.KAFKA_SPEED_MULTIPLIER}...")
 
     try:
