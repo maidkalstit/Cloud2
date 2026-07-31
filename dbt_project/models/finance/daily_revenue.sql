@@ -10,7 +10,7 @@ with raw_transactions as (
     select * from {{ source('silver', 'silver_transactions') }}
     
     {% if is_incremental() %}
-    where created_date >= date_sub(current_date(), 3)
+    where created_date >= (select max(revenue_date) from {{ this }})
     {% endif %}
 ),
 
