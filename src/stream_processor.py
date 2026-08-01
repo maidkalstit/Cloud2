@@ -26,6 +26,13 @@ class BusinessTransaction(BaseModel):
     order_purchase_timestamp: str
     payment_value: Decimal
 
+    @field_validator("order_id", "customer_id")
+    @classmethod
+    def check_ids_not_empty(cls, v: str) -> str:
+        if not v or v.strip() == "":
+            raise ValueError("INVALID_ID")
+        return v
+
     @field_validator("order_status")
     @classmethod
     def check_status_not_empty(cls, v: str) -> str:
@@ -71,6 +78,8 @@ def validate_row_logic(
             return "EMPTY_STATUS"
         if "NEGATIVE_VALUE" in err_msg:
             return "NEGATIVE_VALUE"
+        if "INVALID_ID" in err_msg:
+            return "INVALID"
         return "INVALID"
     except Exception:
         return "INVALID"
@@ -240,9 +249,17 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
         )
     )
 
-    # 3. Routing Branch B (DLQ Tier 2b - Ambiguous/Financial Errors to Pending Review)
-    # Target: Negative monetary values or invalid Pydantic schemas.
-    pending_review_filter = (col("validation_status") == "NEGATIVE_VALUE") | (col("validation_status") == "INVALID")
+    # 3. Routing Branch B (DLQ Tier 2b - Ambiguous/Financial/Integrity Errors to Pending Review)
+    # Target: Negative monetary values, invalid Pydantic schemas, or missing primary keys.
+    pending_review_filter = (
+        (col("validation_status") == "NEGATIVE_VALUE") | 
+        (col("validation_status") == "INVALID") |
+        col("order_id").isNull() | 
+        (col("order_id") == "") |
+        col("customer_id").isNull() |
+        (col("customer_id") == "") |
+        col("created_date").isNull()
+    )
     pending_review_df = (
         base_silver_df
         .filter(pending_review_filter)
@@ -250,10 +267,16 @@ def execute_micro_batch_storage(batch_df: DataFrame, batch_id: int) -> None:
     )
 
     # 4. Routing Branch A (DLQ Tier 2a - Auto-remediation + Clean Data)
-    # Target: Valid or simple remediation candidates (like empty status strings).
-    good_pipeline_df = base_silver_df.filter(
-        (col("validation_status") == "VALID") | (col("validation_status") == "EMPTY_STATUS")
+    # Target: Valid or simple remediation candidates with strict identity integrity.
+    good_pipeline_filter = (
+        ((col("validation_status") == "VALID") | (col("validation_status") == "EMPTY_STATUS")) &
+        col("order_id").isNotNull() & 
+        (col("order_id") != "") &
+        col("customer_id").isNotNull() &
+        (col("customer_id") != "") &
+        col("created_date").isNotNull()
     )
+    good_pipeline_df = base_silver_df.filter(good_pipeline_filter)
     remediated_clean_df = apply_auto_remediation(
         good_pipeline_df, 
         target_column="order_status", 

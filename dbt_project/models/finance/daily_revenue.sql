@@ -8,9 +8,11 @@
 
 with raw_transactions as (
     select * from {{ source('silver', 'silver_transactions') }}
+    where created_date is not null 
+      and order_id is not null
     
     {% if is_incremental() %}
-    where created_date >= (select max(revenue_date) from {{ this }})
+      and created_date >= (select max(revenue_date) from {{ this }})
     {% endif %}
 ),
 

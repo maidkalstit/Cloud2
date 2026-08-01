@@ -15,6 +15,9 @@ with raw_transactions as (
             else order_status 
         end as business_order_status
     from {{ source('silver', 'silver_transactions') }}
+    where customer_id is not null
+      and order_id is not null
+      and created_date is not null
 ),
 
 customer_metrics as (
