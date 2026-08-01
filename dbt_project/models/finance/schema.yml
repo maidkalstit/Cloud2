@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: daily_revenue
+    description: "Daily aggregated revenue and order counts derived from cleansed silver transactions."
+    columns:
+      - name: revenue_date
+        description: "The date of the transactions (Primary Key for this Gold model)."
+        tests:
+          - not_null
+          - unique
+      - name: total_orders
+        description: "Total distinct number of orders placed on this date."
+        tests:
+          - not_null
+      - name: gross_revenue
+        description: "Total gross revenue generated on this date (sum of payment values)."
+        tests:
+          - not_null
+      - name: average_order_value
+        description: "Average payment value per order on this date."
+        tests:
+          - not_null

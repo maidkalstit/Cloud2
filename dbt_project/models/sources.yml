@@ -6,3 +6,13 @@ sources:
     tables:
       - name: silver_transactions
         description: "The cleansed and deduplicated Olist transactions stored as an Apache Iceberg table."
+        columns:
+          - name: order_id
+            description: "Primary key for the order. Must be unique and not null."
+            tests:
+              - unique
+              - not_null
+          - name: validation_status
+            description: "The Data Quality Validation Status."
+            tests:
+              - not_null

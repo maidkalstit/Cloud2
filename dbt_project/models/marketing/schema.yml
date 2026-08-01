@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: customer_activity
+    description: "Customer aggregated purchasing activity providing a historical view of their spending and order statuses."
+    columns:
+      - name: customer_id
+        description: "Unique identifier for the customer (Primary Key for this Gold model)."
+        tests:
+          - not_null
+          - unique
+      - name: first_purchase_date
+        description: "The date of the customer's first purchase."
+        tests:
+          - not_null
+      - name: last_purchase_date
+        description: "The date of the customer's most recent purchase."
+        tests:
+          - not_null
+      - name: total_spent
+        description: "Total amount spent by the customer across all their orders."
+        tests:
+          - not_null
