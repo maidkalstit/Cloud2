@@ -95,7 +95,7 @@ def inspect_lakehouse():
         customer_count = spark.table("demo.gold_marketing.customer_activity").count()
         print(f"   -> [Marketing] Total Unique Customers: {customer_count:,}")
         print("   -> Sample Customer Activity Data:")
-        spark.table("demo.gold_marketing.customer_activity").orderBy(col("total_spend").desc()).show(3, truncate=False)
+        spark.table("demo.gold_marketing.customer_activity").orderBy(col("total_spent").desc()).show(3, truncate=False)
         
     except Exception as e:
         print(f"   -> Gold Table Error (Did you run dbt yet?): {e}")
