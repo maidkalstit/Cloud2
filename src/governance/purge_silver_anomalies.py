@@ -51,8 +51,12 @@ def purge_anomalies():
     
     if anomaly_count > 0:
         print("Moving anomalies to demo.silver.silver_pending_review...")
-        # Prepare for DLQ pending review
-        quarantine_df = anomalies_df.withColumn("_status", lit("PENDING"))
+        # Drop remediation metadata to match silver_pending_review schema
+        quarantine_df = (
+            anomalies_df
+            .drop("_is_remediated", "_remediation_rule")
+            .withColumn("_status", lit("PENDING"))
+        )
         quarantine_df.write.format("iceberg").mode("append").save("demo.silver.silver_pending_review")
         
         print("Purging anomalies from demo.silver.silver_transactions...")
