@@ -81,6 +81,25 @@ def inspect_lakehouse():
     except Exception as e:
         print(f"   -> Audit Log Info: {e}")
 
+    # 5. Inspect Gold Layer (DBT Materializations)
+    try:
+        print("\n5. GOLD LAYER (demo.gold_finance & demo.gold_marketing):")
+        
+        # Finance: Daily Revenue
+        revenue_count = spark.table("demo.gold_finance.daily_revenue").count()
+        print(f"   -> [Finance] Total Days Calculated: {revenue_count:,}")
+        print("   -> Sample Daily Revenue Data:")
+        spark.table("demo.gold_finance.daily_revenue").orderBy(col("revenue_date").desc()).show(3, truncate=False)
+        
+        # Marketing: Customer Activity
+        customer_count = spark.table("demo.gold_marketing.customer_activity").count()
+        print(f"   -> [Marketing] Total Unique Customers: {customer_count:,}")
+        print("   -> Sample Customer Activity Data:")
+        spark.table("demo.gold_marketing.customer_activity").orderBy(col("total_spend").desc()).show(3, truncate=False)
+        
+    except Exception as e:
+        print(f"   -> Gold Table Error (Did you run dbt yet?): {e}")
+
     print("\n" + "=" * 60)
     print("                 INSPECTION COMPLETE                         ")
     print("=" * 60)
