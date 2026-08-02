@@ -3,15 +3,15 @@
 -- Run these SQL statements in Google Cloud BigQuery Console Query Editor
 -- =============================================================================
 
--- 1. Create Datasets if not already created
+-- 1. Create Datasets if not already created (matching GCP Region us-central1)
 CREATE SCHEMA IF NOT EXISTS `olist-lakehouse-v25.silver`
-OPTIONS (location = 'US');
+OPTIONS (location = 'us-central1');
 
 CREATE SCHEMA IF NOT EXISTS `olist-lakehouse-v25.gold_finance`
-OPTIONS (location = 'US');
+OPTIONS (location = 'us-central1');
 
 CREATE SCHEMA IF NOT EXISTS `olist-lakehouse-v25.gold_marketing`
-OPTIONS (location = 'US');
+OPTIONS (location = 'us-central1');
 
 -- 2. Expose Silver Cleansed Table to BigQuery
 CREATE OR REPLACE EXTERNAL TABLE `olist-lakehouse-v25.silver.silver_transactions`
