@@ -19,5 +19,5 @@ export PYSPARK_SUBMIT_ARGS="--conf spark.sql.extensions=org.apache.iceberg.spark
 --conf spark.hadoop.google.cloud.auth.service.account.enable=true \
 pyspark-shell"
 
-# Execute dbt
-dbt run --profiles-dir .
+# Execute dbt with any passed arguments (e.g. --full-refresh)
+dbt run --profiles-dir . "$@"

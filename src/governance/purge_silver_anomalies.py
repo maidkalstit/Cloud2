@@ -68,5 +68,16 @@ def purge_anomalies():
     else:
         print("Silver layer is already 100% clean!")
 
+    # Purge any historical legacy null rows from Gold Finance table as well
+    try:
+        print("Cleaning any legacy NULL rows from demo.gold_finance.daily_revenue...")
+        spark.sql("""
+            DELETE FROM demo.gold_finance.daily_revenue 
+            WHERE revenue_date IS NULL OR trim(revenue_date) = ''
+        """)
+        print("Successfully cleaned Gold Finance layer!")
+    except Exception as e:
+        print(f"Note: {e}")
+
 if __name__ == "__main__":
     purge_anomalies()
