@@ -27,9 +27,38 @@ OPTIONS (
   uris = ['gs://olist-streaming-lakehouse-bucket/warehouse/gold_finance/daily_revenue/data/*']
 );
 
--- 4. Expose Gold Marketing Customer Activity Table to BigQuery (For Looker Customer Dashboards)
+-- 4. Expose Gold Marketing Customer Activity Table to BigQuery
 CREATE OR REPLACE EXTERNAL TABLE `olist-lakehouse-v25.gold_marketing.customer_activity`
 OPTIONS (
   format = 'PARQUET',
   uris = ['gs://olist-streaming-lakehouse-bucket/warehouse/gold_marketing/customer_activity/data/*']
 );
+
+-- =============================================================================
+-- 5. SEMANTIC REPORTING VIEWS (For Looker Studio BI Dashboards)
+-- These views eliminate historical snapshot file duplicates from external table scans
+-- =============================================================================
+
+-- Finance Semantic View (Deduplicated by revenue_date)
+CREATE OR REPLACE VIEW `olist-lakehouse-v25.gold_finance.v_daily_revenue` AS
+SELECT 
+    revenue_date,
+    MAX(total_orders) AS total_orders,
+    MAX(gross_revenue) AS gross_revenue,
+    MAX(average_order_value) AS average_order_value
+FROM `olist-lakehouse-v25.gold_finance.daily_revenue`
+WHERE revenue_date IS NOT NULL
+GROUP BY revenue_date;
+
+-- Marketing Semantic View (Deduplicated by customer_id)
+CREATE OR REPLACE VIEW `olist-lakehouse-v25.gold_marketing.v_customer_activity` AS
+SELECT 
+    customer_id,
+    MAX(first_purchase_date) AS first_purchase_date,
+    MAX(last_purchase_date) AS last_purchase_date,
+    MAX(total_orders) AS total_orders,
+    MAX(total_spent) AS total_spent,
+    MAX(order_statuses) AS order_statuses
+FROM `olist-lakehouse-v25.gold_marketing.customer_activity`
+WHERE customer_id IS NOT NULL
+GROUP BY customer_id;
