@@ -14,9 +14,9 @@
 
 ## 📌 Executive Summary
 
-This project is a **production-structured, real-time Streaming-Ingest Lakehouse** designed to ingest, cleanse, govern, and model **99,441 e-commerce transactions** (the Brazilian Olist dataset) into an ACID Lakehouse. 
+This project is a **production-structured, real-time Streaming-Ingest Lakehouse** designed and built by me to ingest, cleanse, govern, and model **99,441 e-commerce transactions** (the Brazilian Olist dataset) into an ACID Lakehouse.
 
-What makes this project unique is its **strict resource engineering**: the entire streaming pipeline—including **Kafka**, **Schema Registry**, **PySpark Structured Streaming**, and **Iceberg table maintenance**—runs reliably on a single **GCP Free-Tier `e2-medium` VM (2 vCPUs, 4GB RAM)** without encountering Out-Of-Memory (OOM) failures or incurring unnecessary cloud costs. It demonstrates that enterprise-grade Data Governance, dual-tier Dead Letter Queues (DLQ), and automated dbt Data Contracts can be engineered cleanly under tight compute constraints.
+What makes this project unique is my **strict resource engineering**: the entire streaming pipeline—including **Kafka**, **Schema Registry**, **PySpark Structured Streaming**, and **Iceberg table maintenance**—runs reliably on a single **GCP Free-Tier `e2-medium` VM (2 vCPUs, 4GB RAM)** without encountering Out-Of-Memory (OOM) failures or incurring cloud costs. It demonstrates that enterprise-grade Data Governance, dual-tier Dead Letter Queues (DLQ), and automated dbt Data Contracts can be engineered cleanly under tight compute constraints.
 
 ---
 
@@ -90,25 +90,30 @@ flowchart TD
 
 ## 📖 The Engineering Story: Hard Problems & Pragmatic Solutions
 
-Building a robust streaming data pipeline is rarely about stitching tutorials together—it is about navigating trade-offs, debugging platform incompatibilities, and designing defensively against real-world constraints.
+Building a robust streaming data pipeline is rarely about stitching tutorials together—it is about navigating real trade-offs, debugging deep platform incompatibilities, and designing defensively against real-world constraints.
 
 ### 1. The 4GB RAM Constraint: Unified Streaming Engine
-* **The Challenge:** Running Kafka, Zookeeper/KRaft, Schema Registry, and PySpark simultaneously on a single GCP `e2-medium` VM (4GB RAM) caused immediate JVM OOM errors when attempting to run separate Spark Streaming jobs for Bronze (raw append) and Silver (cleansing & validation).
-* **The Engineering Decision:** We redesigned the streaming architecture into a **single unified PySpark Structured Streaming job** using `foreachBatch`. In each micro-batch (15-second trigger interval), the DataFrame is cached in memory once, appended immutably to Bronze Iceberg storage, validated through Pydantic schemas, and routed to Silver and Quarantine tables in a single JVM context. This eliminated cross-process overhead and stabilized memory utilization under 3.1GB.
+* **The Challenge:** Running Kafka, Zookeeper/KRaft, Schema Registry, and PySpark simultaneously on a single GCP `e2-medium` VM (4GB RAM) caused immediate JVM OOM errors when I initially attempted to run separate Spark Streaming jobs for Bronze (raw append) and Silver (cleansing & validation).
+* **My Decision:** I re-architected the pipeline into a **single unified PySpark Structured Streaming job** using `foreachBatch`. In each micro-batch (15-second trigger interval), the DataFrame is cached in memory once, appended immutably to Bronze Iceberg storage, validated through Pydantic schemas, and routed to Silver and Quarantine tables in a single JVM context. This eliminated cross-process overhead and stabilized memory utilization under 3.1GB.
 
 ### 2. Intentional Data Governance: 2-Tier DLQ & Human-in-the-Loop Review
 * **The Challenge:** Real-world streaming data contains both *syntactic corruptions* (bad JSON/Avro bytes) and *semantic business anomalies* (e.g., negative payment values, missing foreign keys).
-* **The Engineering Decision:** We implemented a strict **Dual-Tier Dead Letter Queue (DLQ)**:
+* **My Decision:** I implemented a strict **Dual-Tier Dead Letter Queue (DLQ)**:
   * **Tier 1 (Kafka DLQ Topic `raw_transactions_bf_dlq`):** Captures unparseable bytes and schema registration failures before they hit the Lakehouse.
   * **Tier 2 (Iceberg Quarantine Table `silver_pending_review`):** Isolates business-level violations (such as negative payments).
-* **Why We Refused to Auto-Fix Negative Values:** It is tempting to automatically take the absolute value (`abs(payment)`) or discard negative transactions. However, in financial engineering, a negative payment might represent a valid customer refund, a chargeback, or an accounting adjustment. Auto-modifying financial data introduces silent bookkeeping errors. Instead, these records are quarantined in `silver_pending_review` and exposed to a human-in-the-loop review tool (`inspect_warehouse.py` / governance scripts) where decisions are permanently tracked in `audit_log`.
+* **Why I Refused to Auto-Fix Negative Values:** It is tempting to automatically take the absolute value (`abs(payment)`) or discard negative transactions. However, in financial engineering, a negative payment might represent a valid customer refund, a chargeback, or an accounting adjustment. Auto-modifying financial data introduces silent bookkeeping errors. Instead, these records are quarantined in `silver_pending_review` and exposed to a human-in-the-loop review tool (`inspect_warehouse.py` / governance scripts) where decisions are permanently tracked in `audit_log`.
 
-### 3. Compatibility Engineering & Dependency Pinning
-* **Java 24 vs. PySpark 3.5/4.x:** Initial builds on cutting-edge Java versions failed due to JVM reflection restrictions and incubator module warnings in Py4J. We pinned **Java 17 LTS (OpenJDK)** across all worker environments to ensure long-term stability with Apache Spark’s Py4J bridge.
-* **Python 3.14 & Time-Ordered UUIDs:** Python 3.14 lacks mature C-extension wheels for key PySpark dependencies. We pinned **Python 3.12** and used the specialized `uuid6` library to generate timestamp-ordered **UUIDv7** ingest keys, ensuring deterministic time-series indexing without relying on bleeding-edge Python internals.
+### 3. The dbt-Spark & Apache Iceberg Battle: ClassLoader Isolation & Snapshot Ghost Rows
+* **The Py4J ClassLoader JAR Hell:** When integrating `dbt-spark` (session method) with Apache Iceberg and Google Cloud Storage on Linux, PySpark’s isolated Py4J ClassLoader failed to pass `--packages` dependencies to downstream dbt worker threads, causing silent `ClassNotFoundException: com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem`. Rather than relying on fragile CLI flags, I engineered an automated injection script in `run_dbt.sh` that physically injects the required GCS connector and Iceberg runtime JARs directly into the active Python environment (`site-packages/pyspark/jars`), solving the ClassLoader isolation bug once and for all.
+* **Iceberg Snapshot "Ghost Rows" in Incremental Models:** During dbt test runs, the `not_null` tests on `daily_revenue` initially failed even after updating the SQL models and running `--full-refresh`. I discovered that in Apache Iceberg’s table format, an incremental `MERGE INTO` without an explicit physical deletion left historical `NULL` rows inside immutable data files referenced by older manifests. I resolved this by authoring `purge_silver_anomalies.py`, which executes explicit Iceberg SQL `DELETE` commands to commit a clean snapshot, enabling the test suite to achieve a **100% PASS (13/13)** rate.
+* **BigQuery Wildcard Parquet Collision:** When exposing Iceberg Parquet files to BigQuery via raw wildcards (`data/*`), BigQuery scanned all physical files—including orphan files left from earlier test iterations—causing metrics to multiply by 4x. I fixed this by creating **Semantic Deduplication Views** (`v_daily_revenue`, `v_customer_activity`) on BigQuery that deduplicate by natural keys and shield downstream BI reporting from underlying object-storage quirks.
 
-### 4. FinOps & Zero-Drift Financial Modeling
-* **Decimal(18,2) Strict Typing:** Ingesting transaction amounts as `FLOAT` or `DOUBLE` causes binary floating-point rounding errors (e.g., `19.99` becoming `19.989999999999998`). We enforced `DECIMAL(18,2)` across all Pydantic validators, Iceberg schemas, and dbt models to preserve exact monetary precision.
+### 4. Compatibility Engineering & Dependency Pinning
+* **Java 24 vs. PySpark 3.5/4.x:** Initial builds on cutting-edge Java versions failed due to JVM reflection restrictions and incubator module warnings in Py4J. I pinned **Java 17 LTS (OpenJDK)** across all worker environments to ensure long-term stability with Apache Spark’s Py4J bridge.
+* **Python 3.14 & Time-Ordered UUIDs:** Python 3.14 lacks mature C-extension wheels for key PySpark dependencies. I pinned **Python 3.12** and used the specialized `uuid6` library to generate timestamp-ordered **UUIDv7** ingest keys, ensuring deterministic time-series indexing without relying on bleeding-edge Python internals.
+
+### 5. FinOps & Zero-Drift Financial Modeling
+* **Decimal(18,2) Strict Typing:** Ingesting transaction amounts as `FLOAT` or `DOUBLE` causes binary floating-point rounding errors (e.g., `19.99` becoming `19.989999999999998`). I enforced `DECIMAL(18,2)` across all Pydantic validators, Iceberg schemas, and dbt models to preserve exact monetary precision.
 * **Orchestration Pragmatism:** Rather than keeping an Apache Airflow webserver, scheduler, and worker running live (consuming 1.5GB+ idle RAM), transformations are triggered via lightweight, deterministic bash wrappers and cron jobs (`run_dbt.sh`), reserving maximum compute for Spark stream processing.
 
 ---
@@ -257,6 +262,6 @@ As an aspiring Data Engineer, reflecting on architectural trade-offs is just as 
 
 ## 👨‍💻 Author & Contact
 
-Built with precision by **Tung**
+Built with precision by **Dang Bui Thanh Tung**
 
 * **GitHub:** [@maidkalstit](https://github.com/maidkalstit)
