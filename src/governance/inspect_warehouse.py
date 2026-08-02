@@ -4,10 +4,15 @@ import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import count, col
 
+# Add project root directory to sys.path automatically
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # Set PySpark Python path
 os.environ["PYSPARK_PYTHON"] = sys.executable
 os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
-os.environ["HADOOP_HOME"] = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "hadoop"))
+os.environ["HADOOP_HOME"] = os.path.abspath(os.path.join(PROJECT_ROOT, "hadoop"))
 
 from src.config import config
 
