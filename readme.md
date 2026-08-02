@@ -263,5 +263,10 @@ As an aspiring Data Engineer, reflecting on architectural trade-offs is just as 
 ## 👨‍💻 Author & Contact
 
 Built with precision by **Dang Bui Thanh Tung**
+* **Role:** Data Engineer
+* **Phone:** `(+84) 0898 701 246`
 
+* **Email:** [dtung12004@gmail.com](mailto:dtung12004@gmail.com)
+* **LinkedIn:** [Dang Bui Thanh Tung](https://www.linkedin.com/in/t%C3%B9ng-%C4%91%E1%BA%B7ng-4a3003391/)
 * **GitHub:** [@maidkalstit](https://github.com/maidkalstit)
+
