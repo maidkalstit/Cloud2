@@ -93,7 +93,7 @@ flowchart TD
 Building a robust streaming data pipeline is rarely about stitching tutorials together—it is about navigating real trade-offs, debugging deep platform incompatibilities, and designing defensively against real-world constraints.
 
 ### 1. The 4GB RAM Constraint: Unified Streaming Engine
-* **The Challenge:** Running Kafka, Zookeeper/KRaft, Schema Registry, and PySpark simultaneously on a single GCP `e2-medium` VM (4GB RAM) caused immediate JVM OOM errors when I initially attempted to run separate Spark Streaming jobs for Bronze (raw append) and Silver (cleansing & validation).
+* **The Challenge:** Running Kafka (in modern ZooKeeper-less KRaft mode), Schema Registry, and PySpark simultaneously on a single GCP `e2-medium` VM (4GB RAM) caused immediate JVM OOM errors when I initially attempted to run separate Spark Streaming jobs for Bronze (raw append) and Silver (cleansing & validation).
 * **My Decision:** I re-architected the pipeline into a **single unified PySpark Structured Streaming job** using `foreachBatch`. In each micro-batch (15-second trigger interval), the DataFrame is cached in memory once, appended immutably to Bronze Iceberg storage, validated through Pydantic schemas, and routed to Silver and Quarantine tables in a single JVM context. This eliminated cross-process overhead and stabilized memory utilization under 3.1GB.
 
 ### 2. Intentional Data Governance: 2-Tier DLQ & Human-in-the-Loop Review
@@ -263,9 +263,9 @@ As an aspiring Data Engineer, reflecting on architectural trade-offs is just as 
 ## 👨‍💻 Author & Contact
 
 Built with precision by **Dang Bui Thanh Tung**
+
 * **Role:** Data Engineer
 * **Phone:** `(+84) 0898 701 246`
-
 * **Email:** [dtung12004@gmail.com](mailto:dtung12004@gmail.com)
 * **LinkedIn:** [Dang Bui Thanh Tung](https://www.linkedin.com/in/t%C3%B9ng-%C4%91%E1%BA%B7ng-4a3003391/)
 * **GitHub:** [@maidkalstit](https://github.com/maidkalstit)
