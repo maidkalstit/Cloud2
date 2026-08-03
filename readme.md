@@ -44,10 +44,10 @@ flowchart TD
     end
 
     subgraph LAKEHOUSE ["3. Medallion Storage (Apache Iceberg on GCS)"]
-        BRONZE[("🥉 Bronze Layer<br/>demo.bronze.bronze_transactions<br/>(Immutable Ingestion Archive)")]
-        SILVER[("🥈 Silver Clean Layer<br/>demo.silver.silver_transactions<br/>(Valid & Auto-Healed Data)")]
-        DLQ[("⚠️ Silver Quarantine / DLQ<br/>demo.silver.silver_pending_review<br/>(Isolated Anomalies)")]
-        AUDIT[("📋 Governance Audit Log<br/>demo.silver.audit_log<br/>(Human Review Tracking)")]
+        BRONZE[("🥉 Bronze Layer<br/>bronze.bronze_transactions<br/>(Immutable Ingestion Archive)")]
+        SILVER[("🥈 Silver Clean Layer<br/>silver.silver_transactions<br/>(Valid & Auto-Healed Data)")]
+        DLQ[("⚠️ Silver Quarantine / DLQ<br/>silver.silver_pending_review<br/>(Isolated Anomalies)")]
+        AUDIT[("📋 Governance Audit Log<br/>silver.audit_log<br/>(Human Review Tracking)")]
         
         SPARK -->|Append Raw Events| BRONZE
         SPARK -->|Route Clean Records| SILVER
@@ -125,7 +125,7 @@ Building a robust streaming data pipeline is rarely about stitching tutorials to
 | **Apache Spark** | `3.5.3` / `4.0.0-preview` | Industry-standard distributed processing with mature Structured Streaming APIs. |
 | **Java Runtime** | `OpenJDK 17 LTS` | Stable LTS release; avoids Py4J reflection errors found in JDK 21/24. |
 | **Apache Iceberg** | `1.6.1` / `1.11.0 runtime` | Provides ACID transactions, snapshot isolation, and metadata-driven queries on GCS. |
-| **Apache Kafka** | `7.5.0` (Confluent) | High-throughput distributed message broker with Avro Schema Registry support. |
+| **Apache Kafka** | `4.1.2 (KRaft mode)` / `7.6.0 SR` | High-throughput distributed message broker with Avro Schema Registry support. |
 | **dbt-core & dbt-spark** | `1.9.10` / `1.11.0` | Idempotent data transformations, automated Data Contracts, and declarative testing. |
 | **Pydantic** | `2.10.x` | Rust-backed, sub-millisecond data validation for incoming stream payloads. |
 | **Google Cloud** | `GCS, BigQuery, Compute` | Scalable object storage, serverless analytics, and low-cost execution VM (`e2-medium`). |
@@ -212,16 +212,16 @@ SCHEMA_REGISTRY_URL=http://localhost:8081
 ### 3. Launch Streaming Infrastructure
 ```bash
 # Start Kafka and Schema Registry containers
-docker-compose -f infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.yml up -d
 
 # Start the Continuous Streaming Producer (with fault injection & replay capability)
-python src/producer.py
+python -m src.producer
 ```
 
 ### 4. Run PySpark Structured Streaming
 ```bash
 # Ingests stream, enforces Pydantic contracts, writes Bronze & Silver Iceberg tables
-python src/stream_processor.py
+python -m src.stream_processor
 ```
 
 ### 5. Run PyTest Unit & Integration Suite
