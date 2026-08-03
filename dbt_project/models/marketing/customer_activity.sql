@@ -27,8 +27,8 @@ customer_metrics as (
         max(created_date) as last_purchase_date,
         count(order_id) as total_orders,
         
-        -- Rule 1: Rigid monetary precision enforcement using explicit decimal casting
-        cast(sum(payment_value) as decimal(18,2)) as total_spent,
+        -- Rule 1: Rigid monetary precision enforcement using native decimal aggregation
+        sum(parsed_payment_value) as total_spent,
         
         -- Spark SQL Specific Optimization: Aggregates distinct historical states into a single string
         -- We use the business-friendly mapped status for BI consumption

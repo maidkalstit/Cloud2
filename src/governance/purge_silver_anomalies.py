@@ -27,16 +27,16 @@ def purge_anomalies():
             "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.19"
         )
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-        .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog")
-        .config("spark.sql.catalog.demo.type", "hadoop")
-        .config("spark.sql.catalog.demo.warehouse", config.gcs_warehouse_path)
+        .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
+        .config("spark.sql.catalog.spark_catalog.type", "hadoop")
+        .config("spark.sql.catalog.spark_catalog.warehouse", config.gcs_warehouse_path)
         .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
         .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
         .getOrCreate()
     )
 
-    print("Checking for legacy anomalies in demo.silver.silver_transactions...")
-    silver_df = spark.table("demo.silver.silver_transactions")
+    print("Checking for legacy anomalies in silver.silver_transactions...")
+    silver_df = spark.table("silver.silver_transactions")
     
     anomalies_df = silver_df.filter(
         col("order_id").isNull() | 
@@ -50,18 +50,18 @@ def purge_anomalies():
     print(f"Found {anomaly_count} anomaly records violating Data Contracts.")
     
     if anomaly_count > 0:
-        print("Moving anomalies to demo.silver.silver_pending_review...")
+        print("Moving anomalies to silver.silver_pending_review...")
         # Drop remediation metadata to match silver_pending_review schema
         quarantine_df = (
             anomalies_df
             .drop("_is_remediated", "_remediation_rule")
             .withColumn("_status", lit("PENDING"))
         )
-        quarantine_df.write.format("iceberg").mode("append").save("demo.silver.silver_pending_review")
+        quarantine_df.write.format("iceberg").mode("append").save("silver.silver_pending_review")
         
-        print("Purging anomalies from demo.silver.silver_transactions...")
+        print("Purging anomalies from silver.silver_transactions...")
         spark.sql("""
-            DELETE FROM demo.silver.silver_transactions 
+            DELETE FROM silver.silver_transactions 
             WHERE order_id IS NULL OR order_id = '' OR customer_id IS NULL OR customer_id = '' OR created_date IS NULL
         """)
         print("Successfully cleaned Silver layer!")
@@ -70,9 +70,9 @@ def purge_anomalies():
 
     # Purge any historical legacy null rows from Gold Finance table as well
     try:
-        print("Cleaning any legacy NULL rows from demo.gold_finance.daily_revenue...")
+        print("Cleaning any legacy NULL rows from gold_finance.daily_revenue...")
         spark.sql("""
-            DELETE FROM demo.gold_finance.daily_revenue 
+            DELETE FROM gold_finance.daily_revenue 
             WHERE revenue_date IS NULL OR trim(revenue_date) = ''
         """)
         print("Successfully cleaned Gold Finance layer!")

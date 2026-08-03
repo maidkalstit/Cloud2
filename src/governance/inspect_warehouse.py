@@ -34,9 +34,9 @@ def inspect_lakehouse():
             "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.19"
         )
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-        .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog")
-        .config("spark.sql.catalog.demo.type", "hadoop")
-        .config("spark.sql.catalog.demo.warehouse", config.gcs_warehouse_path)
+        .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
+        .config("spark.sql.catalog.spark_catalog.type", "hadoop")
+        .config("spark.sql.catalog.spark_catalog.warehouse", config.gcs_warehouse_path)
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
         .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
@@ -45,62 +45,62 @@ def inspect_lakehouse():
 
     # 1. Inspect Bronze Layer (Raw Ledger)
     try:
-        bronze_count = spark.table("demo.bronze.bronze_transactions").count()
-        print(f"\n1. BRONZE LAYER (demo.bronze.bronze_transactions):")
+        bronze_count = spark.table("bronze.bronze_transactions").count()
+        print(f"\n1. BRONZE LAYER (bronze.bronze_transactions):")
         print(f"   -> Total Raw Ingested Records : {bronze_count:,}")
         print("   -> Sample Data:")
-        spark.table("demo.bronze.bronze_transactions").select("ingest_id", "order_id", "order_status", "payment_value", "ingested_at").show(3, truncate=False)
+        spark.table("bronze.bronze_transactions").select("ingest_id", "order_id", "order_status", "payment_value", "ingested_at").show(3, truncate=False)
     except Exception as e:
         print(f"   -> Bronze Table Error: {e}")
 
     # 2. Inspect Silver Clean Layer
     try:
-        silver_clean_count = spark.table("demo.silver.silver_transactions").count()
-        print(f"\n2. SILVER CLEAN LAYER (demo.silver.silver_transactions):")
+        silver_clean_count = spark.table("silver.silver_transactions").count()
+        print(f"\n2. SILVER CLEAN LAYER (silver.silver_transactions):")
         print(f"   -> Total Clean & Remediated Records: {silver_clean_count:,}")
         print("   -> Validation Status Breakdown:")
-        spark.table("demo.silver.silver_transactions").groupBy("validation_status", "_is_remediated").count().show()
+        spark.table("silver.silver_transactions").groupBy("validation_status", "_is_remediated").count().show()
         print("   -> Sample Clean Data:")
-        spark.table("demo.silver.silver_transactions").select("order_id", "parsed_payment_value", "validation_status", "_is_remediated", "_remediation_rule").show(3, truncate=False)
+        spark.table("silver.silver_transactions").select("order_id", "parsed_payment_value", "validation_status", "_is_remediated", "_remediation_rule").show(3, truncate=False)
     except Exception as e:
         print(f"   -> Silver Clean Error: {e}")
 
     # 3. Inspect Silver Pending Review (Quarantine)
     try:
-        silver_pending_count = spark.table("demo.silver.silver_pending_review").count()
-        print(f"\n3. SILVER QUARANTINE LAYER (demo.silver.silver_pending_review):")
+        silver_pending_count = spark.table("silver.silver_pending_review").count()
+        print(f"\n3. SILVER QUARANTINE LAYER (silver.silver_pending_review):")
         print(f"   -> Total Quarantined Records : {silver_pending_count:,}")
         print("   -> Status Breakdown (_status):")
-        spark.table("demo.silver.silver_pending_review").groupBy("_status").count().show()
+        spark.table("silver.silver_pending_review").groupBy("_status").count().show()
     except Exception as e:
         print(f"   -> Silver Pending Error: {e}")
 
     # 4. Inspect Governance Audit Log
     try:
-        audit_count = spark.table("demo.silver.audit_log").count()
-        print(f"\n4. GOVERNANCE AUDIT LOG (demo.silver.audit_log):")
+        audit_count = spark.table("silver.audit_log").count()
+        print(f"\n4. GOVERNANCE AUDIT LOG (silver.audit_log):")
         print(f"   -> Total Audited Decisions   : {audit_count:,}")
         if audit_count > 0:
             print("   -> Human Governance Decisions Log:")
-            spark.table("demo.silver.audit_log").show(truncate=False)
+            spark.table("silver.audit_log").show(truncate=False)
     except Exception as e:
         print(f"   -> Audit Log Info: {e}")
 
     # 5. Inspect Gold Layer (DBT Materializations)
     try:
-        print("\n5. GOLD LAYER (demo.gold_finance & demo.gold_marketing):")
+        print("\n5. GOLD LAYER (gold_finance & gold_marketing):")
         
         # Finance: Daily Revenue
-        revenue_count = spark.table("demo.gold_finance.daily_revenue").count()
+        revenue_count = spark.table("gold_finance.daily_revenue").count()
         print(f"   -> [Finance] Total Days Calculated: {revenue_count:,}")
         print("   -> Sample Daily Revenue Data:")
-        spark.table("demo.gold_finance.daily_revenue").orderBy(col("revenue_date").desc()).show(3, truncate=False)
+        spark.table("gold_finance.daily_revenue").orderBy(col("revenue_date").desc()).show(3, truncate=False)
         
         # Marketing: Customer Activity
-        customer_count = spark.table("demo.gold_marketing.customer_activity").count()
+        customer_count = spark.table("gold_marketing.customer_activity").count()
         print(f"   -> [Marketing] Total Unique Customers: {customer_count:,}")
         print("   -> Sample Customer Activity Data:")
-        spark.table("demo.gold_marketing.customer_activity").orderBy(col("total_spent").desc()).show(3, truncate=False)
+        spark.table("gold_marketing.customer_activity").orderBy(col("total_spent").desc()).show(3, truncate=False)
         
     except Exception as e:
         print(f"   -> Gold Table Error (Did you run dbt yet?): {e}")

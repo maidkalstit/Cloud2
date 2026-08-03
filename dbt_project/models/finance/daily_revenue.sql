@@ -23,10 +23,10 @@ daily_aggregation as (
         created_date as revenue_date,
         count(distinct order_id) as total_orders,
         
-        -- Rule 1: Strict precision preservation. Summing decimal fields must result 
-        -- in a DECIMAL(18,2) representation to prevent accounting discrepancies.
-        cast(sum(payment_value) as decimal(18,2)) as gross_revenue,
-        cast(avg(payment_value) as decimal(18,2)) as average_order_value
+        -- Rule 1: Strict precision preservation. Summing decimal fields directly preserves
+        -- DECIMAL(18,2) arithmetic precision without string-to-number type coercion risk.
+        sum(parsed_payment_value) as gross_revenue,
+        cast(avg(parsed_payment_value) as decimal(18,2)) as average_order_value
     from raw_transactions
     where created_date is not null and trim(created_date) != ''
     group by created_date

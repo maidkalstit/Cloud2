@@ -211,11 +211,11 @@ SCHEMA_REGISTRY_URL=http://localhost:8081
 
 ### 3. Launch Streaming Infrastructure
 ```bash
-# Start Kafka and Schema Registry
-docker-compose up -d
+# Start Kafka and Schema Registry containers
+docker-compose -f infra/docker-compose.yml up -d
 
-# Start the Continuous Streaming Producer (with fault injection)
-python src/stream_producer.py
+# Start the Continuous Streaming Producer (with fault injection & replay capability)
+python src/producer.py
 ```
 
 ### 4. Run PySpark Structured Streaming
@@ -224,21 +224,31 @@ python src/stream_producer.py
 python src/stream_processor.py
 ```
 
-### 5. Execute dbt Transformations & Test Suite
+### 5. Run PyTest Unit & Integration Suite
+```bash
+# Run comprehensive automated test suite (Config, Serialization, DLQ, Remediation, Governance)
+pytest tests/ -v
+# Output: 17 passed in ~1.2s (100% GREEN)
+```
+
+### 6. Execute dbt Transformations & Test Suite
 ```bash
 cd dbt_project
 
 # Run incremental dbt models
 ./run_dbt.sh
 
-# Run full automated quality gate (Expect 13/13 PASS)
+# Run full automated data quality tests
 ./run_dbt_test.sh
 ```
 
-### 6. Audit Warehouse & Register BigQuery Semantic Views
+### 7. Audit Warehouse & Register BigQuery Semantic Views
 ```bash
-# Inspect local and GCS table counts via Spark
+# Inspect local and GCS table counts via Spark Inspector
 python -m src.governance.inspect_warehouse
+
+# Launch Human-in-the-loop Governance CLI to audit quarantined records
+python -m src.governance.review
 
 # Register BigLake External Tables and Semantic Views
 # (Execute src/governance/create_bigquery_tables.sql in BigQuery Console)

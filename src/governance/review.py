@@ -16,11 +16,11 @@ def query_pending_transactions(spark: SparkSession) -> List[Row]:
     """
     try:
         pending_df = (
-            spark.table("demo.silver.silver_pending_review")
+            spark.table("silver.silver_pending_review")
             .filter(col("_status") == "PENDING")
         )
         return pending_df.collect()
-    except Exception as e:
+    except Exception:
         # If the table does not exist yet (first-run scenario), return an empty list gracefully
         return []
 
@@ -43,10 +43,6 @@ def apply_remediation_decision(
     ingest_id = row["ingest_id"]
     old_value = row["payment_value"]
 
-    # 1. Initialize empty tables representation for Spark execution
-    # Ensure money fields utilize DECIMAL(18,2) representation at SQL compile time
-
-
     if decision == "APPROVED":
         remediated_decimal = Decimal(remediated_value_str)
         # Build the repaired record to match the Silver Clean schema exactly
@@ -68,7 +64,7 @@ def apply_remediation_decision(
         
         # Merge corrected record into Silver Clean table
         spark.sql("""
-            MERGE INTO demo.silver.silver_transactions target
+            MERGE INTO silver.silver_transactions target
             USING tmp_human_repaired source
             ON target.order_id = source.order_id
             WHEN MATCHED THEN UPDATE SET *
@@ -77,7 +73,7 @@ def apply_remediation_decision(
         
         # Update the pending registry status to APPROVED
         spark.sql("""
-            UPDATE demo.silver.silver_pending_review
+            UPDATE silver.silver_pending_review
             SET _status = 'APPROVED'
             WHERE order_id = :order_id AND ingest_id = :ingest_id
         """, args={"order_id": order_id, "ingest_id": ingest_id})
@@ -88,7 +84,7 @@ def apply_remediation_decision(
     else:  # REJECTED path
         # Mark as REJECTED in the pending registry so it remains for historical trace but closes the action
         spark.sql("""
-            UPDATE demo.silver.silver_pending_review
+            UPDATE silver.silver_pending_review
             SET _status = 'REJECTED'
             WHERE order_id = :order_id AND ingest_id = :ingest_id
         """, args={"order_id": order_id, "ingest_id": ingest_id})
@@ -97,7 +93,7 @@ def apply_remediation_decision(
 
     # 2. Append to centralized audit_log table for strict governance compliance
     spark.sql("""
-        CREATE TABLE IF NOT EXISTS demo.silver.audit_log (
+        CREATE TABLE IF NOT EXISTS silver.audit_log (
             order_id STRING,
             old_value STRING,
             new_value STRING,
@@ -119,7 +115,7 @@ def apply_remediation_decision(
     }]
     
     audit_df = spark.createDataFrame(audit_entry)
-    audit_df.write.format("iceberg").mode("append").save("demo.silver.audit_log")
+    audit_df.write.format("iceberg").mode("append").save("silver.audit_log")
 
 def run_governance_cli(
     spark: SparkSession,
@@ -129,40 +125,39 @@ def run_governance_cli(
 ) -> None:
     """
     Launches the interactive CLI interface allowing human auditors to step through quarantined transactions.
-    
-    Why: Injecting 'prompt_input' and 'printer' allows 100% automated test coverage without 
-    blocking standard I/O streams during testing.
     """
     pending_records = query_pending_transactions(spark)
     
     if not pending_records:
         printer("No pending transactions found for review.")
         return
-
-    printer(f"--- Found {len(pending_records)} Transactions Pending Review ---")
+        
+    printer(f"Found {len(pending_records)} pending transaction(s) requiring review:\n")
     
     for row in pending_records:
-        printer("\n==================================================")
-        printer(f"Order ID       : {row['order_id']}")
-        printer(f"Ingest ID      : {row['ingest_id']}")
-        printer(f"Payment Value  : {row['payment_value']} (ANOMALY: Negative Value)")
-        printer(f"Status         : {row['order_status']}")
-        printer("==================================================")
+        printer(f"--- Transaction [order_id: {row['order_id']}] ---")
+        printer(f"Raw Row: {row.asDict()}")
         
-        decision = ""
-        while decision not in ["Y", "N"]:
-            decision = prompt_input("Approve and auto-fix to absolute value? (Y/N): ").strip().upper()
-        
-        if decision == "Y":
-            # Auto-remediation for negative value: take the absolute positive amount
-            fixed_val = str(abs(Decimal(str(row["payment_value"]))))
-            apply_remediation_decision(spark, row, "APPROVED", reviewer_name, fixed_val)
-            printer(f"-> Decision logged: APPROVED and remediated value to {fixed_val}")
-        else:
-            apply_remediation_decision(spark, row, "REJECTED", reviewer_name)
-            printer("-> Decision logged: REJECTED (Record marked as inactive)")
-            
-    printer("\n--- Governance Review Session Completed ---")
+        while True:
+            decision = prompt_input("Approve (Y) / Reject (N) / Skip (S): ").strip().upper()
+            if decision == "Y":
+                new_val_str = prompt_input("Enter corrected payment_value (e.g. 150.00): ").strip()
+                try:
+                    Decimal(new_val_str)
+                    apply_remediation_decision(spark, row, "APPROVED", reviewer_name, new_val_str)
+                    printer(f"-> Successfully APPROVED and updated order_id: {row['order_id']}\n")
+                    break
+                except Exception as e:
+                    printer(f"Invalid decimal value: {e}. Please retry.")
+            elif decision == "N":
+                apply_remediation_decision(spark, row, "REJECTED", reviewer_name)
+                printer(f"-> Marked order_id: {row['order_id']} as REJECTED\n")
+                break
+            elif decision == "S":
+                printer(f"-> Skipped order_id: {row['order_id']}\n")
+                break
+            else:
+                printer("Invalid option. Enter Y, N, or S.")
 
 if __name__ == "__main__":
     import os
@@ -177,25 +172,19 @@ if __name__ == "__main__":
         .config("spark.driver.host", "127.0.0.1")
         .config("spark.driver.bindAddress", "127.0.0.1")
         .config("spark.ui.enabled", "false")
-
-        # --- Nạp các gói JARs cho Iceberg & GCS Connector ---
         .config(
             "spark.jars.packages",
             "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.11.0,"
             "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.19"
         )
-
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-        .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog")
-        .config("spark.sql.catalog.demo.type", "hadoop")
-        .config("spark.sql.catalog.demo.warehouse", config.gcs_warehouse_path)
+        .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
+        .config("spark.sql.catalog.spark_catalog.type", "hadoop")
+        .config("spark.sql.catalog.spark_catalog.warehouse", config.gcs_warehouse_path)
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.default.parallelism", "1")
-
-        # --- GCS Security Configuration ---
         .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
         .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
         .getOrCreate()
     )
     run_governance_cli(spark_session, reviewer_name="System Auditor")
-

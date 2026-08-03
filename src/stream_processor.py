@@ -189,6 +189,18 @@ AVRO_SCHEMA_STR: str = """
 }
 """
 
+def get_base_bronze_schema() -> StructType:
+    """Returns the standardized PySpark StructType schema representing the raw Bronze transactions."""
+    return StructType([
+        StructField("ingest_id", StringType(), True),
+        StructField("order_id", StringType(), True),
+        StructField("customer_id", StringType(), True),
+        StructField("order_status", StringType(), True),
+        StructField("order_purchase_timestamp", StringType(), True),
+        StructField("payment_value", StringType(), True)
+    ])
+
+
 def deserialize_kafka_payload(raw_kafka_df: DataFrame) -> DataFrame:
     """
     Transforms raw binary Kafka records into a structured, typed DataFrame

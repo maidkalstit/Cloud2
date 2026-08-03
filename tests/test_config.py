@@ -26,8 +26,8 @@ def test_settings_computed_paths_are_dry_and_correct() -> None:
     assert settings.gcs_checkpoint_path == "gs://olist-streaming-lakehouse-bucket/checkpoints/stream_processor"
 
 def test_settings_default_values_are_correct() -> None:
-    """Ensures base defaults match production expectations (e.g. 10 seconds spark trigger)."""
-    assert Settings.model_fields["SPARK_TRIGGER_PROCESSING_TIME"].default == "10 seconds"
+    """Ensures base defaults match production expectations (e.g. 15 seconds spark trigger)."""
+    assert Settings.model_fields["SPARK_TRIGGER_PROCESSING_TIME"].default == "15 seconds"
     assert Settings.model_fields["KAFKA_SPEED_MULTIPLIER"].default == 10000.0
     assert Settings.model_fields["INJECT_ERROR"].default is False
 
