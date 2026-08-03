@@ -64,9 +64,7 @@ def test_apply_remediation_decision_approved_idempotency(spark_test_session: Spa
         "created_date": "2026-01-01"
     }
     
-    with patch.object(spark_test_session, "sql") as mock_sql_engine, \
-         patch("pyspark.sql.DataFrameWriter.save") as mock_audit_save:
-         
+    with patch.object(spark_test_session, "sql") as mock_sql_engine:
         apply_remediation_decision(
             spark=spark_test_session,
             row=mock_row,
@@ -80,8 +78,7 @@ def test_apply_remediation_decision_approved_idempotency(spark_test_session: Spa
         # Idempotency Verification:
         assert any("MERGE INTO silver.silver_transactions" in query for query in executed_queries)
         assert any("UPDATE silver.silver_pending_review" in query for query in executed_queries)
-        
-        mock_audit_save.assert_called_once()
+        assert any("INSERT INTO silver.audit_log" in query for query in executed_queries)
 
 def test_apply_remediation_decision_rejected(spark_test_session: SparkSession) -> None:
     """
@@ -98,9 +95,7 @@ def test_apply_remediation_decision_rejected(spark_test_session: SparkSession) -
         "created_date": "2026-01-02"
     }
     
-    with patch.object(spark_test_session, "sql") as mock_sql_engine, \
-         patch("pyspark.sql.DataFrameWriter.save") as mock_audit_save:
-         
+    with patch.object(spark_test_session, "sql") as mock_sql_engine:
         apply_remediation_decision(
             spark=spark_test_session,
             row=mock_row,
@@ -113,8 +108,7 @@ def test_apply_remediation_decision_rejected(spark_test_session: SparkSession) -
         assert not any("MERGE INTO silver.silver_transactions" in query for query in executed_queries)
         assert any("UPDATE silver.silver_pending_review" in query for query in executed_queries)
         assert any("SET _status = 'REJECTED'" in query for query in executed_queries)
-        
-        mock_audit_save.assert_called_once()
+        assert any("INSERT INTO silver.audit_log" in query for query in executed_queries)
 
 def test_run_governance_cli_interactive_flow(spark_test_session: SparkSession) -> None:
     """

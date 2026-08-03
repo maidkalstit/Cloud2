@@ -105,17 +105,22 @@ def apply_remediation_decision(
     """)
     
     audit_entry = [{
+        "order_id": order_id,
         "old_value": str(old_value),
         "new_value": new_value,
         "field_changed": "payment_value",
         "action": action_type,
         "reviewed_by": reviewer_name,
-        "reviewed_at": current_time,
-        "order_id": order_id
+        "reviewed_at": current_time
     }]
     
     audit_df = spark.createDataFrame(audit_entry)
-    audit_df.write.format("iceberg").mode("append").save("silver.audit_log")
+    audit_df.createOrReplaceTempView("tmp_audit_entry")
+    spark.sql("""
+        INSERT INTO silver.audit_log
+        SELECT order_id, old_value, new_value, field_changed, action, reviewed_by, reviewed_at
+        FROM tmp_audit_entry
+    """)
 
 def run_governance_cli(
     spark: SparkSession,
