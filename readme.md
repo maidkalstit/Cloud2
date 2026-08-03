@@ -88,7 +88,7 @@ flowchart TD
 
 ---
 
-## 📖 The Engineering Story: Hard Problems & Pragmatic Solutions
+## 📖 Hard Problems & Pragmatic Solutions
 
 Building a robust streaming data pipeline is rarely about stitching tutorials together—it is about navigating real trade-offs, debugging deep platform incompatibilities, and designing defensively against real-world constraints.
 
