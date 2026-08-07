@@ -191,7 +191,7 @@ The processed Lakehouse data is surfaced to **Looker Studio** via BigQuery Seman
 
 ### 1. Clone Repository & Setup Environment
 ```bash
-git clone https://github.com/maidkalstit/Coud2.git cloud2
+git clone https://github.com/maidkalstit/Cloud2.git cloud2
 cd cloud2
 
 # Create virtual environment with Python 3.12
